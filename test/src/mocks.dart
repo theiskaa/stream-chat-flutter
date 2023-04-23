@@ -1,61 +1,112 @@
-import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:logging/logging.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:stream_chat_flutter/src/video/vlc/vlc_manager_desktop.dart';
-import 'package:stream_chat_flutter/stream_chat_flutter.dart';
+import 'package:stream_chat/src/client/channel.dart';
+import 'package:stream_chat/src/client/client.dart';
+import 'package:stream_chat/src/core/api/attachment_file_uploader.dart';
+import 'package:stream_chat/src/core/api/channel_api.dart';
+import 'package:stream_chat/src/core/api/device_api.dart';
+import 'package:stream_chat/src/core/api/general_api.dart';
+import 'package:stream_chat/src/core/api/guest_api.dart';
+import 'package:stream_chat/src/core/api/message_api.dart';
+import 'package:stream_chat/src/core/api/moderation_api.dart';
+import 'package:stream_chat/src/core/api/user_api.dart';
+import 'package:stream_chat/src/core/http/connection_id_manager.dart';
+import 'package:stream_chat/src/core/http/stream_http_client.dart';
+import 'package:stream_chat/src/core/http/token_manager.dart';
+import 'package:stream_chat/src/core/models/channel_config.dart';
+import 'package:stream_chat/src/db/chat_persistence_client.dart';
+import 'package:stream_chat/src/ws/websocket.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
-class MockClient extends Mock implements StreamChatClient {
-  MockClient() {
-    when(() => wsConnectionStatus).thenReturn(ConnectionStatus.connected);
-    when(() => wsConnectionStatusStream)
-        .thenAnswer((_) => Stream.value(ConnectionStatus.connected));
-  }
-}
+class MockWebSocketChannel extends Mock implements WebSocketChannel {}
 
-class MockClientState extends Mock implements ClientState {}
+class MockWebSocketSink extends Mock implements WebSocketSink {}
 
-class MockChannel extends Mock implements Channel {
+class MockDio extends Mock implements Dio {
+  BaseOptions? _options;
+
   @override
-  Future<bool> get initialized async => true;
+  BaseOptions get options => _options ??= BaseOptions();
+
+  Interceptors? _interceptors;
 
   @override
-  // ignore: prefer_expression_function_bodies
-  Future<void> keyStroke([String? parentId]) async {
-    return;
-  }
+  Interceptors get interceptors => _interceptors ??= Interceptors();
+}
+
+class MockLogger extends Mock implements Logger {
+  @override
+  Level get level => Level.ALL;
+}
+
+class MockHttpClient extends Mock implements StreamHttpClient {}
+
+class MockTokenManager extends Mock implements TokenManager {}
+
+class MockConnectionIdManager extends Mock implements ConnectionIdManager {}
+
+class MockUserApi extends Mock implements UserApi {}
+
+class MockGuestApi extends Mock implements GuestApi {}
+
+class MockMessageApi extends Mock implements MessageApi {}
+
+class MockChannelApi extends Mock implements ChannelApi {}
+
+class MockDeviceApi extends Mock implements DeviceApi {}
+
+class MockModerationApi extends Mock implements ModerationApi {}
+
+class MockGeneralApi extends Mock implements GeneralApi {}
+
+class MockAttachmentFileUploader extends Mock
+    implements AttachmentFileUploader {}
+
+class MockPersistenceClient extends Mock implements ChatPersistenceClient {
+  @override
+  Future<void> connect(String userId) => Future.value();
 
   @override
-  List<String> get ownCapabilities => ['send-message'];
+  Future<void> disconnect({bool flush = false}) => Future.value();
 }
 
-class MockChannelState extends Mock implements ChannelClientState {
-  MockChannelState() {
-    when(() => typingEvents).thenReturn({});
-    when(() => typingEventsStream).thenAnswer((_) => Stream.value({}));
-    when(() => unreadCount).thenReturn(0);
-    when(() => read).thenReturn([]);
-  }
-}
-
-class MockNavigatorObserver extends Mock implements NavigatorObserver {}
-
-class MockVoidCallback extends Mock {
-  void call();
-}
-
-class MockAttachmentHandler extends Mock implements StreamAttachmentHandler {}
-
-class MockMember extends Mock implements Member {}
-
-class MockUser extends Mock implements User {}
-
-class MockOwnUser extends Mock implements OwnUser {}
-
-class MockAttachment extends Mock implements Attachment {}
-
-class MockVlcManagerDesktop extends Mock implements VlcManagerDesktop {}
-
-class MockStreamMemberListController extends Mock
-    implements StreamMemberListController {
+class MockStreamChatClient extends Mock implements StreamChatClient {
   @override
-  PagedValue<int, Member> value = const PagedValue.loading();
+  bool get persistenceEnabled => false;
 }
+
+class MockStreamChatClientWithPersistence extends Mock
+    implements StreamChatClient {
+  ChatPersistenceClient? _persistenceClient;
+
+  @override
+  ChatPersistenceClient get chatPersistenceClient =>
+      _persistenceClient ??= MockPersistenceClient();
+
+  @override
+  bool get persistenceEnabled => true;
+}
+
+class MockChannelConfig extends Mock implements ChannelConfig {}
+
+class MockRetryQueueChannel extends Mock implements Channel {
+  final channelId = 'test-channel-id';
+  final channelType = 'test-channel-type';
+
+  @override
+  String? get id => channelId;
+
+  @override
+  String get type => channelType;
+
+  @override
+  String? get cid => '$channelType:$channelId';
+
+  StreamChatClient? _client;
+
+  @override
+  StreamChatClient get client => _client ??= MockStreamChatClient();
+}
+
+class MockWebSocket extends Mock implements WebSocket {}
